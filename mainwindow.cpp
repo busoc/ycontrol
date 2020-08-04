@@ -24,7 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionDisconnect, &QAction::triggered, this, &MainWindow::onDisconnect);
     connect(ui->actionRefresh, &QAction::triggered, this, &MainWindow::onRefresh);
 
-    setFixedSize(QSize(540, 720));
+    setFixedSize(QSize(960, 540));
 
     QVBoxLayout* layout = new QVBoxLayout;
     layout->setAlignment(Qt::AlignTop);
@@ -82,6 +82,15 @@ void MainWindow::onReplyFinished()
 void MainWindow::onUpdateFinished()
 {
     reply->deleteLater();
+    reply->close();
+    clear();
+    retrieve();
+//    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+//    if (doc.isNull() || !doc.isObject()) {
+//        return ;
+//    }
+//    QJsonObject root = doc.object();
+//    Q_UNUSED(root)
 }
 
 void MainWindow::onReplyError(QNetworkReply::NetworkError err)
@@ -109,11 +118,14 @@ void MainWindow::onControl(QString name, QString state)
     url.setPath(QString("%1%2").arg(API, name));
     url.setQuery(query);
 
-    QString question = QString("You are about to modify the state of instance %1 to %2?");
+    QString question = QString("You are about to modify the state of instance %1 to %2. Do you want to continue?");
     int code = QMessageBox::information(this, "confirm", question.arg(name, state), QMessageBox::Yes|QMessageBox::No);
     if (code == QMessageBox::No) {
         return;
     }
+
+    ProgressDialog *dialog = new ProgressDialog(url, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
 
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::KnownHeaders::ContentTypeHeader, "application/json");
@@ -121,6 +133,10 @@ void MainWindow::onControl(QString name, QString state)
     reply = http->post(req, body);
     connect(reply, &QNetworkReply::errorOccurred, this, &MainWindow::onReplyError);
     connect(reply, &QNetworkReply::finished, this, &MainWindow::onUpdateFinished);
+
+    connect(reply, &QNetworkReply::downloadProgress, dialog, &ProgressDialog::replyProgress);
+    connect(reply, &QNetworkReply::finished, dialog, &ProgressDialog::hide);
+    dialog->show();
 }
 
 void MainWindow::onConnect()
@@ -226,4 +242,27 @@ void MainWindow::writeSettings()
     settings.setValue("port", current.port);
     settings.setValue("user", current.user);
     settings.setValue("passwd", current.passwd);
+}
+
+ProgressDialog::ProgressDialog(const QUrl &url, QWidget *parent)
+  : QProgressDialog(parent)
+{
+    setWindowTitle("Request in progress");
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+    setLabelText(QString("Waiting from %1.").arg(url.toDisplayString()));
+    setMinimum(0);
+    setMaximum(0);
+    setValue(0);
+    setMinimumDuration(0);
+    setFixedSize(QSize(400, 75));
+}
+
+ProgressDialog::~ProgressDialog()
+{
+}
+
+void ProgressDialog::replyProgress(qint64 read, qint64 total)
+{
+    setMaximum(total);
+    setValue(read);
 }

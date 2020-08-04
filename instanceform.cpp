@@ -13,6 +13,7 @@ InstanceForm::InstanceForm(Instance i, QWidget *parent):
 {
     curr = i;
     ui->label->setText(curr.name);
+    ui->status->setText(curr.status);
 
     ui->stop->setEnabled(curr.status==RUNNING);
     ui->start->setEnabled(curr.status==OFFLINE);

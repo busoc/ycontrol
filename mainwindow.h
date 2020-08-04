@@ -6,6 +6,7 @@
 #include <QNetworkReply>
 #include <QAuthenticator>
 #include <QLabel>
+#include <QProgressDialog>
 
 #include "control.h"
 
@@ -57,4 +58,16 @@ private:
     void readSettings();
     void writeSettings();
 };
+
+class ProgressDialog : public QProgressDialog {
+    Q_OBJECT
+
+public:
+    explicit ProgressDialog(const QUrl &url, QWidget *parent = nullptr);
+    ~ProgressDialog();
+
+public slots:
+   void replyProgress(qint64 read, qint64 total);
+};
 #endif // MAINWINDOW_H
+
